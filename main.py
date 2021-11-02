@@ -5,8 +5,8 @@ import time
 import threading
 from datetime import datetime
 
-debugging_active = False
-
+debugging_active = True
+GUIActive = True
 
 class Debug:
     # -------------------------------- Developer Layout --------------------------------#
@@ -20,10 +20,43 @@ class Debug:
     logging.debug("Debug level has been started!")
     # -------------------------------- Developer Layout --------------------------------#
 
+class Coin(threading.Thread):
 
-class Coin:
-    pass
+    def __init__(self, runningWindow, mlineKey, coinName, coinAPIName, followTime, deamonState = True):
+        super().__init__()
+        self.runningWindow = runningWindow
+        self.mlineKey = mlineKey
+        self.coinName = coinName
+        self.coinAPIName = coinAPIName
+        self.followTime = followTime
+        self.deamonState = deamonState
+        self.spacer = '-----------------------------------------------------------------------------------------------------------------------'
+        self._stop_event = threading.Event()
+        self.setDaemon(self.deamonState)
 
+    def instantValue(self):
+        url = 'https://api.coinbase.com/v2/prices/' + self.coinAPIName + '/spot'
+        response = requests.get(url)
+        data = response.json()
+        price = data['data']['amount']
+        currency = data['data']['base']
+        now = datetime.now()
+        message = f"{now}: {self.coinName} is currently {price} {currency}!"
+        logging.debug(message)
+        window[self.mlineKey].update(message + '\n' + self.spacer + '\n' , text_color_for_value='green', append=True)
+        return price, currency
+
+    def stop(self):
+        logging.debug("Stop coin price follower thread has been called!")
+        return self._stop_event.set()
+
+    def run(self):
+        logging.debug("Coin price follower thread has been started!")
+        while not self._stop_event.is_set():
+            logging.debug("Coin price follower thread is running!")
+            self.instantValue()
+            time.sleep(self.followTime)
+        logging.debug("Coin price follower thread has been stopped!")
 
 class GUI:
 
@@ -35,8 +68,6 @@ class GUI:
     def LayoutMenu():
         menu_layout = [['&File', ['&Open     Ctrl-O', '&Save       Ctrl-S', '&Properties', 'E&xit']],
                        ['&Edit', ['&Paste', ['Special', 'Normal', ], 'Undo'], ],
-                       ['&Toolbar', ['---', 'Command &1', 'Command &2',
-                                     '---', 'Command &3', 'Command &4']],
                        ['&Help', '&About...'], ]
         return menu_layout
 
@@ -51,8 +82,8 @@ class GUI:
     def LayoutModeSelection():
         mode_selection_layout = [
             sg.Radio('Get Instant Price', "RADIO1", key='Instant_Price_Radio', default=True),
-            sg.Radio('Create a wallet', "RADIO1", key='Wallet_Radio'),
-            sg.Radio('Buy/Sell Tracker', "RADIO1", key='Tracker_Radio'),
+            sg.Radio('Create a wallet', "RADIO1", key='Wallet_Radio', disabled=True),
+            sg.Radio('Buy/Sell Tracker', "RADIO1", key='Tracker_Radio', disabled=True),
             sg.Button('Apply', size=(10, 1))
         ]
         return mode_selection_layout
@@ -120,7 +151,6 @@ class GUI:
     @staticmethod
     def UpdateLayoutInstantPrice():
         logging.debug("Instant price radio has been selected!")
-        logging.debug("--------------------------------------")
         window.Element('layout_instant_price').Update(visible=True)
         window.Element('layout_create_wallet').Update(visible=False)
         window.Element('layout_buy_sell_tracker').Update(visible=False)
@@ -129,7 +159,6 @@ class GUI:
     @staticmethod
     def UpdateLayoutCreateWallet():
         logging.debug("Create a wallet radio has been selected!")
-        logging.debug("--------------------------------------")
         window.Element('layout_instant_price').Update(visible=False)
         window.Element('layout_create_wallet').Update(visible=True)
         window.Element('layout_buy_sell_tracker').Update(visible=False)
@@ -138,7 +167,6 @@ class GUI:
     @staticmethod
     def UpdateLayoutBuySellTracker():
         logging.debug("Buy/Sell radio has been selected!")
-        logging.debug("--------------------------------------")
         window.Element('layout_instant_price').Update(visible=False)
         window.Element('layout_create_wallet').Update(visible=False)
         window.Element('layout_buy_sell_tracker').Update(visible=True)
@@ -173,11 +201,17 @@ class GUI:
 
 
 if __name__ == '__main__':
+
     app = GUI(theme='Dark')
     window = GUI.CreateWindow()
-    while True:
+
+    while  not GUIActive:
+        time.sleep(60)
+
+    while GUIActive:
         event, values = window.Read()
         logging.debug(values)
+
         if event in (None, 'Cancel', 'Exit'):
             break
 
@@ -190,3 +224,13 @@ if __name__ == '__main__':
             if values["Tracker_Radio"]:
                 app.UpdateLayoutBuySellTracker()
 
+        if event == 'Follow':
+
+            CoinFollower = Coin(window, 'Layout_Instant_Price', values['Instant_Price_Coin_Name'],
+                                values['Instant_Price_Coin_API_Name'], float(values['Instant_Price_Coin_Following_Time']) )
+            logging.info("Follow event has been selected!")
+            print("Follow event has been selected!")
+            if CoinFollower.is_alive():
+                print('Thread is currently running!')
+            else:
+                CoinFollower.start()
