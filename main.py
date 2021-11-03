@@ -6,7 +6,7 @@ import threading
 from datetime import datetime
 
 debugging_active = True
-GUIActive = True
+
 
 class Debug:
     # -------------------------------- Developer Layout --------------------------------#
@@ -20,9 +20,10 @@ class Debug:
     logging.debug("Debug level has been started!")
     # -------------------------------- Developer Layout --------------------------------#
 
+
 class Coin(threading.Thread):
 
-    def __init__(self, runningWindow, mlineKey, coinName, coinAPIName, followTime, deamonState = True):
+    def __init__(self, runningWindow, mlineKey, coinName, coinAPIName, followTime, deamonState=True):
         super().__init__()
         self.runningWindow = runningWindow
         self.mlineKey = mlineKey
@@ -30,7 +31,8 @@ class Coin(threading.Thread):
         self.coinAPIName = coinAPIName
         self.followTime = followTime
         self.deamonState = deamonState
-        self.spacer = '-----------------------------------------------------------------------------------------------------------------------'
+        self.spacer = '-------------------------------------------------------------------------------------------' \
+                      '---------------------------- '
         self._stop_event = threading.Event()
         self.setDaemon(self.deamonState)
 
@@ -39,11 +41,13 @@ class Coin(threading.Thread):
         response = requests.get(url)
         data = response.json()
         price = data['data']['amount']
-        currency = data['data']['base']
+        price = format(float(price), '.4f')
+        currency = data['data']['currency']
         now = datetime.now()
-        message = f"{now}: {self.coinName} is currently {price} {currency}!"
+        date_time = now.strftime("%m/%d/%Y, %H:%M:%S")
+        message = f"{date_time}: {self.coinName} is currently {price} {currency}!"
         logging.debug(message)
-        window[self.mlineKey].update(message + '\n' + self.spacer + '\n' , text_color_for_value='green', append=True)
+        window[self.mlineKey].update(message + '\n' + self.spacer + '\n', text_color_for_value='green', append=True)
         return price, currency
 
     def stop(self):
@@ -57,6 +61,7 @@ class Coin(threading.Thread):
             self.instantValue()
             time.sleep(self.followTime)
         logging.debug("Coin price follower thread has been stopped!")
+
 
 class GUI:
 
@@ -99,11 +104,12 @@ class GUI:
                  sg.InputText(key='Instant_Price_Coin_API_Name', size=(10, 1)),
                  sg.Text("Coin Following Time [s]: ", size=(20, 1)),
                  sg.InputText(key='Instant_Price_Coin_Following_Time', size=(10, 1)),
-                 sg.Button('Follow', size=(12, 1))
+                 sg.Button('Follow', size=(12, 1), key='Follow_Instant_Price', disabled=False),
+                 sg.Button('Stop', size=(12, 1), key='Stop_Instant_Price', disabled=True)
                  ],
-                [sg.Multiline(size=(105, 10), disabled=True, auto_refresh=True, reroute_cprint=False,
-                              write_only=True, autoscroll=False, justification='l',
-                              key='Layout_Instant_Price')]
+                [sg.Multiline(size=(120, 10), font=('Courier New', 9), pad=(0, (2, 0)), disabled=True,
+                              auto_refresh=True, reroute_cprint=False, write_only=True, autoscroll=True,
+                              justification='l', key='Layout_Instant_Price'), ]
             ], title='Coin Instant Price ')
         ]
         return instant_price_layout
@@ -173,6 +179,22 @@ class GUI:
         return None
 
     @staticmethod
+    def updateFollowInstantPrice():
+        window.Element('Stop_Instant_Price').update(disabled=False)
+        window.Element('Follow_Instant_Price').update(disabled=True)
+        window.Element('Instant_Price_Coin_Name').update(disabled=True)
+        window.Element('Instant_Price_Coin_API_Name').update(disabled=True)
+        window.Element('Instant_Price_Coin_Following_Time').update(disabled=True)
+
+    @staticmethod
+    def updateStopInstantPrice():
+        window.Element('Stop_Instant_Price').update(disabled=True)
+        window.Element('Follow_Instant_Price').update(disabled=False)
+        window.Element('Instant_Price_Coin_Name').update(disabled=False)
+        window.Element('Instant_Price_Coin_API_Name').update(disabled=False)
+        window.Element('Instant_Price_Coin_Following_Time').update(disabled=False)
+
+    @staticmethod
     def LayoutMain():
         main_layout = [
             [
@@ -196,22 +218,17 @@ class GUI:
     def CreateWindow():
         created_window = sg.Window('Welcome to Personalized Coin Follower', GUI.LayoutMain(),
                                    default_element_size=(40, 1),
-                                   icon=r'app.ico')
+                                   icon=r'app.ico', location=(350, 250))
         return created_window
 
 
 if __name__ == '__main__':
-
-    app = GUI(theme='Dark')
+    app = GUI(theme='Reddit')
     window = GUI.CreateWindow()
-
-    while  not GUIActive:
-        time.sleep(60)
-
-    while GUIActive:
+    while True:
         event, values = window.Read()
         logging.debug(values)
-
+        logging.debug(event)
         if event in (None, 'Cancel', 'Exit'):
             break
 
@@ -224,13 +241,14 @@ if __name__ == '__main__':
             if values["Tracker_Radio"]:
                 app.UpdateLayoutBuySellTracker()
 
-        if event == 'Follow':
-
+        if event == 'Follow_Instant_Price':
+            logging.info("Follow Instant Price event has been selected!")
             CoinFollower = Coin(window, 'Layout_Instant_Price', values['Instant_Price_Coin_Name'],
                                 values['Instant_Price_Coin_API_Name'], float(values['Instant_Price_Coin_Following_Time']) )
-            logging.info("Follow event has been selected!")
-            print("Follow event has been selected!")
-            if CoinFollower.is_alive():
-                print('Thread is currently running!')
-            else:
-                CoinFollower.start()
+            CoinFollower.start()
+            app.updateFollowInstantPrice()
+
+        if event == 'Stop_Instant_Price':
+            logging.info("Stop Instant Price event has been selected!")
+            CoinFollower.stop()
+            app.updateStopInstantPrice()
