@@ -6,7 +6,7 @@ import threading
 from datetime import datetime
 
 debugging_active = True
-
+AppFont = 'Any 16'
 
 class Debug:
     # -------------------------------- Developer Layout --------------------------------#
@@ -23,16 +23,16 @@ class Debug:
 
 class Coin(threading.Thread):
 
-    def __init__(self, runningWindow, mlineKey, coinName, coinAPIName, followTime, deamonState=True):
+    def __init__(self, runningWindow, mlineKey, coinName, coinAPIName, followTime, textColour, deamonState=True):
         super().__init__()
         self.runningWindow = runningWindow
         self.mlineKey = mlineKey
         self.coinName = coinName
         self.coinAPIName = coinAPIName
         self.followTime = followTime
+        self.textColour = textColour
         self.deamonState = deamonState
-        self.spacer = '-------------------------------------------------------------------------------------------' \
-                      '---------------------------- '
+        self.spacer = '-------------------------------------------------------------------------'
         self._stop_event = threading.Event()
         self.setDaemon(self.deamonState)
 
@@ -47,8 +47,16 @@ class Coin(threading.Thread):
         date_time = now.strftime("%m/%d/%Y, %H:%M:%S")
         message = f"{date_time}: {self.coinName} is currently {price} {currency}!"
         logging.debug(message)
-        window[self.mlineKey].update(message + '\n' + self.spacer + '\n', text_color_for_value='green', append=True)
+        window[self.mlineKey].update(message + '\n' + self.spacer + '\n', text_color_for_value= self.textColour, append=True)
         return price, currency
+
+    #TODO add mail service
+    def mailFeedback(self):
+        # Future Development
+        pass
+
+    def buysellTracker(self):
+        pass
 
     def stop(self):
         logging.debug("Stop coin price follower thread has been called!")
@@ -79,17 +87,17 @@ class GUI:
     @staticmethod
     def LayoutIntro():
         intro_layout = [
-            sg.Text('Personalized coin user interface!', size=(30, 1)), sg.Text("", size=(10, 1)),
+            sg.Text('Personalized coin user interface!', font=AppFont, size=(30, 1)), sg.Text("", size=(10, 1)),
         ]
         return intro_layout
 
     @staticmethod
     def LayoutModeSelection():
         mode_selection_layout = [
-            sg.Radio('Get Instant Price', "RADIO1", key='Instant_Price_Radio', default=True),
-            sg.Radio('Create a wallet', "RADIO1", key='Wallet_Radio', disabled=True),
-            sg.Radio('Buy/Sell Tracker', "RADIO1", key='Tracker_Radio', disabled=True),
-            sg.Button('Apply', size=(10, 1))
+            sg.Radio('Get Instant Price', "RADIO1", key='Instant_Price_Radio', font=AppFont, default=True),
+            sg.Radio('Create a wallet', "RADIO1", key='Wallet_Radio', font=AppFont, disabled=False),
+            sg.Radio('Buy/Sell Tracker', "RADIO1", key='Tracker_Radio', font=AppFont, disabled=False),
+            sg.Button('Apply', size=(10, 1), font=AppFont)
         ]
         return mode_selection_layout
 
@@ -98,16 +106,23 @@ class GUI:
         instant_price_layout = [
             sg.Frame(layout=[
                 [sg.Text('Coin Instant Price Tracker is selected!', size=(73, 1))],
-                [sg.Text("Name your coin: ", size=(12, 1)),
+                [sg.Text(size=(2, 1)),
+                 sg.Text("Name your coin: ", size=(15, 1)),
                  sg.InputText(key='Instant_Price_Coin_Name', size=(10, 1)),
                  sg.Text("Coin API Name: ", size=(12, 1)),
                  sg.InputText(key='Instant_Price_Coin_API_Name', size=(10, 1)),
-                 sg.Text("Coin Following Time [s]: ", size=(20, 1)),
-                 sg.InputText(key='Instant_Price_Coin_Following_Time', size=(10, 1)),
                  sg.Button('Follow', size=(12, 1), key='Follow_Instant_Price', disabled=False),
-                 sg.Button('Stop', size=(12, 1), key='Stop_Instant_Price', disabled=True)
+                ]
+                ,
+                 [
+                    sg.Text(size=(2, 1)),
+                    sg.Text("Coin Track Time[s]: ", size=(15, 1)),
+                    sg.InputText(key='Instant_Price_Coin_Following_Time', size=(10, 1)),
+                    sg.Text('Text Colour: ',size=(12, 1)),
+                    sg.InputText(key='Instant_Price_Text_Color',size=(10, 1)),
+                    sg.Button('Stop', size=(12, 1), key='Stop_Instant_Price', disabled=True)
                  ],
-                [sg.Multiline(size=(120, 10), font=('Courier New', 9), pad=(0, (2, 0)), disabled=True,
+                [sg.Multiline(size=(80, 15), font=('Courier New', 9), pad=(0, (2, 0)), disabled=True,
                               auto_refresh=True, reroute_cprint=False, write_only=True, autoscroll=True,
                               justification='l', key='Layout_Instant_Price'), ]
             ], title='Coin Instant Price ')
@@ -118,7 +133,7 @@ class GUI:
     def LayoutCreateWallet():
         create_wallet_layout = [
             sg.Frame(layout=[
-                [sg.Text('Coin Instant Price Tracker is selected!', size=(73, 1))],
+                [sg.Text('Coin Create a Wallet is selected!', size=(73, 1))],
                 [sg.Text("Name your coin: ", size=(12, 1)),
                  sg.InputText(key='Create_Wallet_Coin_Name', size=(10, 1)),
                  sg.Text("Coin API Name: ", size=(12, 1)),
@@ -127,7 +142,7 @@ class GUI:
                  sg.InputText(key='Create_Wallet_Coin_Following_Time', size=(10, 1)),
                  sg.Button('Create', size=(12, 1))
                  ],
-                [sg.Multiline(size=(105, 10), disabled=True, auto_refresh=True, reroute_cprint=False,
+                [sg.Multiline(size=(120, 15), disabled=True, auto_refresh=True, reroute_cprint=False,
                               write_only=True, autoscroll=False, justification='l',
                               key='Layout_Create_Wallet')],
             ], title='Create a Wallet (Future Part) ')
@@ -138,16 +153,23 @@ class GUI:
     def LayoutBuySellTracker():
         buy_sell_tracker_layout = [
             sg.Frame(layout=[
-                [sg.Text('Coin Instant Price Tracker is selected!', size=(73, 1))],
-                [sg.Text("Name your coin: ", size=(12, 1)),
+                [sg.Text('Coin Buy Sell Price Tracker is selected!', size=(73, 1))],
+                [sg.Text(size=(2, 1)),
+                 sg.Text("Name your coin: ", size=(12, 1)),
                  sg.InputText(key='Buy_Sell_Tracker_Coin_Name', size=(10, 1)),
-                 sg.Text("Coin API Name: ", size=(12, 1)),
-                 sg.InputText(key='Buy_Sell_Tracker_Coin_API_Name', size=(10, 1)),
-                 sg.Text("Coin Following Time [s]: ", size=(20, 1)),
+                 sg.Text("Coin Track Time[s]: ", size=(15, 1)),
                  sg.InputText(key='Buy_Sell_Tracker_Coin_Following_Time', size=(10, 1)),
                  sg.Button('Track', size=(12, 1))
                  ],
-                [sg.Multiline(size=(105, 10), disabled=True, auto_refresh=True, reroute_cprint=False,
+
+                 [sg.Text(size=(2, 1)),
+                 sg.Text("Coin API Name: ", size=(12, 1)),
+                 sg.InputText(key='Buy_Sell_Tracker_Coin_API_Name', size=(10, 1)),
+                 sg.Text('Buy/Sell Limit', size=(15, 1)),
+                 sg.InputText(key="Buy_Sell_Tracker_Price_Set", size=(10, 1)),
+                sg.Button('Stop', size=(12, 1))
+                 ],
+                [sg.Multiline(size=(80, 15), disabled=True, auto_refresh=True, reroute_cprint=False,
                               write_only=True, autoscroll=False, justification='l',
                               key='Layout_Buy_Sell_Tracker')]
             ], title='Buy/Sell Tracker (Future Part)')
@@ -185,6 +207,7 @@ class GUI:
         window.Element('Instant_Price_Coin_Name').update(disabled=True)
         window.Element('Instant_Price_Coin_API_Name').update(disabled=True)
         window.Element('Instant_Price_Coin_Following_Time').update(disabled=True)
+        window.Element('Instant_Price_Text_Color').update(disabled=True)
 
     @staticmethod
     def updateStopInstantPrice():
@@ -193,6 +216,7 @@ class GUI:
         window.Element('Instant_Price_Coin_Name').update(disabled=False)
         window.Element('Instant_Price_Coin_API_Name').update(disabled=False)
         window.Element('Instant_Price_Coin_Following_Time').update(disabled=False)
+        window.Element('Instant_Price_Text_Color').update(disabled=True)
 
     @staticmethod
     def LayoutMain():
@@ -223,7 +247,7 @@ class GUI:
 
 
 if __name__ == '__main__':
-    app = GUI(theme='Reddit')
+    app = GUI()
     window = GUI.CreateWindow()
     while True:
         event, values = window.Read()
@@ -242,11 +266,15 @@ if __name__ == '__main__':
                 app.UpdateLayoutBuySellTracker()
 
         if event == 'Follow_Instant_Price':
-            logging.info("Follow Instant Price event has been selected!")
-            CoinFollower = Coin(window, 'Layout_Instant_Price', values['Instant_Price_Coin_Name'],
-                                values['Instant_Price_Coin_API_Name'], float(values['Instant_Price_Coin_Following_Time']) )
-            CoinFollower.start()
-            app.updateFollowInstantPrice()
+            try:
+                logging.info("Follow Instant Price event has been selected!")
+                CoinFollower = Coin(window, 'Layout_Instant_Price', values['Instant_Price_Coin_Name'],
+                                values['Instant_Price_Coin_API_Name'], float(values['Instant_Price_Coin_Following_Time']),
+                                    values['Instant_Price_Text_Color'])
+                CoinFollower.start()
+                app.updateFollowInstantPrice()
+            except:
+                sg.Popup('Please enter all parameters correctly!')
 
         if event == 'Stop_Instant_Price':
             logging.info("Stop Instant Price event has been selected!")
