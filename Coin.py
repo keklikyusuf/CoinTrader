@@ -6,7 +6,8 @@ import threading
 from datetime import datetime
 
 
-debugging_active = True
+debugging_active = False
+GUIActive = True
 
 
 class Debug:
@@ -71,7 +72,7 @@ class CoinTracker(threading.Thread):
         window[self.multilineKey].update(output + '\n' + self.spacer + '\n', text_color_for_value=self.textColour,
                                          append=True, background_color='white')
         if self.buyTracker:
-            if float(price) < float(self.buyTracker):
+            if float(price) < float(self.buyPrice):
                 window[self.multilineKey].update('Buy Price is activated!' + '\n' + self.spacer + '\n',
                                                  text_color_for_value='black',
                                                  append=True, background_color='yellow')
@@ -81,6 +82,7 @@ class CoinTracker(threading.Thread):
                 window[self.multilineKey].update('Sell Price is activated!' + '\n' + self.spacer + '\n',
                                                  text_color_for_value='black',
                                                  append=True, background_color='yellow')
+
     def stop(self):
         logging.debug("Stop coin price follower thread has been called!")
         return self._stop_event.set()
@@ -138,8 +140,8 @@ class GUI:
                  sg.Text("Coin API Name: ", size=(12, 1)),
                  sg.InputText(key='Tracker_Coin_API_Name', size=(10, 1)),
                  sg.Text(size=(2, 1)),
+                 sg.Checkbox('Buy Tracker', size=(10,1), key='Buy_Tracker_Active', default=False),
                  sg.Button('Track', size=(12, 1), key='Tracker_Start', disabled=False),
-                 sg.Checkbox('Buy Tracker', key='Buy_Tracker_Active', default=False)
                  ]
                 ,
                 [
@@ -150,8 +152,9 @@ class GUI:
                     sg.Combo(['Red', 'Blue', 'Yellow', 'Black', 'Green'], default_value='Green', size=(8, 1),
                              readonly=True, key='Tracker_Text_Color'),
                     sg.Text(size=(2, 1)),
-                    sg.Button('Stop', size=(12, 1), key='Tracker_Stop', disabled=True),
-                    sg.Checkbox('Sell Tracker', key='Sell_Tracker_Active', default=False)
+                    sg.Checkbox('Sell Tracker', size=(10,1), key='Sell_Tracker_Active', default=False),
+                    sg.Button('Stop', size=(12, 1), key='Tracker_Stop', disabled=True)
+
                 ],
                 [
                     sg.Text(size=(2, 1)),
@@ -160,9 +163,11 @@ class GUI:
                     sg.Text("Sell Tracker: ", size=(12, 1)),
                     sg.InputText(key='Tracker_Sell_Price', size=(10, 1)),
                     sg.Text(size=(2, 1)),
+                    sg.Checkbox('Alarm', size=(10,1), key='Alarm_Active', default=False),
                     sg.Button('Graph', size=(12, 1), key='Tracker_Graph', disabled=True)
+
                 ],
-                [sg.Multiline(size=(85, 15), font=('Courier New', 9), pad=(0, (2, 0)), disabled=True,
+                [sg.Multiline(size=(100, 15), font=('Courier New', 9), pad=(0, (2, 0)), disabled=True,
                               auto_refresh=True, reroute_cprint=False, write_only=True, autoscroll=True,
                               justification='l', key='Layout_Tracker_Multiline'), ]
             ], title='Coin Tracker')
@@ -215,6 +220,7 @@ class GUI:
         window.Element('Tracker_Sell_Price').update(disabled=True)
         window.Element('Buy_Tracker_Active').update(disabled=True)
         window.Element('Sell_Tracker_Active').update(disabled=True)
+        window.Element('Alarm_Active').update(disabled=True)
 
     @staticmethod
     def updateStopTracker():
@@ -228,6 +234,7 @@ class GUI:
         window.Element('Tracker_Sell_Price').update(disabled=False)
         window.Element('Buy_Tracker_Active').update(disabled=False)
         window.Element('Sell_Tracker_Active').update(disabled=False)
+        window.Element('Alarm_Active').update(disabled=False)
 
     @staticmethod
     def LayoutMain():
@@ -259,7 +266,7 @@ class GUI:
 if __name__ == '__main__':
     app = GUI()
     window = GUI.CreateWindow()
-    while True:
+    while GUIActive:
         event, values = window.Read()
         logging.debug(values)
         logging.debug(event)
