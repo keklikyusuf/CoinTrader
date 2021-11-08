@@ -6,6 +6,7 @@ import threading
 from datetime import datetime
 from playsound import playsound
 import pandas as pd
+import plotly.express as px
 
 debugging_active = False
 GUIActive = True
@@ -45,6 +46,8 @@ class CoinbaseAPI:
 
 class CoinTracker(threading.Thread):
 
+    coinDataFrame = pd.DataFrame(columns=['DateTime', 'Price'])
+
     def __init__(self, runningWindow, multilineKey, coinName, coinAPIName, followTime, textColour='blue', buyPrice='',
                  sellPrice='', buyTracker=False, sellTracker=False, alarmActive=False, deamonState=True):
         super().__init__()
@@ -64,6 +67,15 @@ class CoinTracker(threading.Thread):
         self._stop_event = threading.Event()
         self.setDaemon(self.deamonState)
 
+    @staticmethod
+    def graph(API, coinDataFrame):
+        now = datetime.now()
+        date_time = now.strftime("%m/%d/%Y, %H:%M:%S")
+        price = API.instantValue()[0]
+        data = [date_time, price]
+        coinDataFrame.loc[len(coinDataFrame)] = data
+        return coinDataFrame
+
     def tracker(self, API):
         now = datetime.now()
         date_time = now.strftime("%m/%d/%Y, %H:%M:%S")
@@ -79,7 +91,7 @@ class CoinTracker(threading.Thread):
                                                  text_color_for_value='black',
                                                  append=True, background_color='yellow')
                 if self.alarmActive:
-                    playsound("alarmclock.mp3")
+                    playsound("D:/Python Projects/CoinTrader/alarmclock.mp3")
                     self.alarmActive = False
 
         if self.sellTracker:
@@ -88,20 +100,21 @@ class CoinTracker(threading.Thread):
                                                  text_color_for_value='black',
                                                  append=True, background_color='yellow')
                 if self.alarmActive:
-                    playsound("alarmclock.mp3")
+                    playsound("D:/Python Projects/CoinTrader/alarmclock.mp3")
                     self.alarmActive = False
         return price, currency
 
     def stop(self):
         logging.debug("Stop coin price follower thread has been called!")
+        CoinTracker.coinDataFrame = CoinTracker.coinDataFrame[0:0]
         return self._stop_event.set()
 
     def run(self):
         logging.debug("Coin thread has been started!")
         API = CoinbaseAPI(self.coinAPIName)
-        coinDataFrame = pd.DataFrame(columns=self.dataColumns)
         while not self._stop_event.is_set():
             self.tracker(API)
+            CoinTracker.graph(API, CoinTracker.coinDataFrame)
             time.sleep(self.followTime)
         logging.debug("Coin price follower thread has been stopped!")
 
@@ -228,8 +241,9 @@ class GUI:
 
     @staticmethod
     def updateStartTracker():
-        window.Element('Tracker_Stop').update(disabled=False)
         window.Element('Tracker_Start').update(disabled=True)
+        window.Element('Tracker_Stop').update(disabled=False)
+        window.Element('Tracker_Graph').update(disabled=False)
         window.Element('Tracker_Coin_Name').update(disabled=True)
         window.Element('Tracker_Coin_API_Name').update(disabled=True)
         window.Element('Tracker_Coin_Following_Time').update(disabled=True)
@@ -242,8 +256,9 @@ class GUI:
 
     @staticmethod
     def updateStopTracker():
-        window.Element('Tracker_Stop').update(disabled=True)
         window.Element('Tracker_Start').update(disabled=False)
+        window.Element('Tracker_Stop').update(disabled=True)
+        window.Element('Tracker_Graph').update(disabled=True)
         window.Element('Tracker_Coin_Name').update(disabled=False)
         window.Element('Tracker_Coin_API_Name').update(disabled=False)
         window.Element('Tracker_Coin_Following_Time').update(disabled=False)
@@ -318,3 +333,8 @@ if __name__ == '__main__':
             logging.info("Stop Tracker event has been selected!")
             Tracker.stop()
             app.updateStopTracker()
+
+        if event == 'Tracker_Graph':
+            logging.info("Graph Tracker event has been selected!")
+            fig = px.line(CoinTracker.coinDataFrame, x="DateTime", y="Price", title='Price Graph')
+            fig.show()
