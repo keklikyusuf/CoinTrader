@@ -61,17 +61,8 @@ class CoinTracker(threading.Thread):
         self.alarmActive = alarmActive
         self.deamonState = deamonState
         self.spacer = '-------------------------------------------------------------------------'
-        self.dataColumns = [['DateTime', 'Price']]
         self._stop_event = threading.Event()
         self.setDaemon(self.deamonState)
-
-    def graph(self, API, coinDataFrame):
-        now = datetime.now()
-        date_time = now.strftime("%m/%d/%Y, %H:%M:%S")
-        price = API.instantValue()[0]
-        data = [[date_time, price]]
-        df = coinDataFrame.append(data, ignore_index=True)
-        print(df)
 
     def tracker(self, API):
         now = datetime.now()
@@ -88,7 +79,7 @@ class CoinTracker(threading.Thread):
                                                  text_color_for_value='black',
                                                  append=True, background_color='yellow')
                 if self.alarmActive:
-                    playsound("C:/Diverse Yusuf Software/Python Packages/Modbus RTU/alarmclock.mp3")
+                    playsound("alarmclock.mp3")
                     self.alarmActive = False
 
         if self.sellTracker:
@@ -97,7 +88,7 @@ class CoinTracker(threading.Thread):
                                                  text_color_for_value='black',
                                                  append=True, background_color='yellow')
                 if self.alarmActive:
-                    playsound("C:/Diverse Yusuf Software/Python Packages/Modbus RTU/alarmclock.mp3")
+                    playsound("alarmclock.mp3")
                     self.alarmActive = False
         return price, currency
 
@@ -111,7 +102,6 @@ class CoinTracker(threading.Thread):
         coinDataFrame = pd.DataFrame(columns=self.dataColumns)
         while not self._stop_event.is_set():
             self.tracker(API)
-            #self.graph(API, coinDataFrame)
             time.sleep(self.followTime)
         logging.debug("Coin price follower thread has been stopped!")
 
