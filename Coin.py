@@ -4,7 +4,8 @@ import logging
 import time
 import threading
 from datetime import datetime
-
+from playsound import playsound
+import pandas as pd
 
 debugging_active = False
 GUIActive = True
@@ -45,7 +46,7 @@ class CoinbaseAPI:
 class CoinTracker(threading.Thread):
 
     def __init__(self, runningWindow, multilineKey, coinName, coinAPIName, followTime, textColour='blue', buyPrice='',
-                 sellPrice='', buyTracker=False, sellTracker=False, deamonState=True):
+                 sellPrice='', buyTracker=False, sellTracker=False, alarmActive=False, deamonState=True):
         super().__init__()
         self.runningWindow = runningWindow
         self.multilineKey = multilineKey
@@ -57,10 +58,20 @@ class CoinTracker(threading.Thread):
         self.sellPrice = sellPrice
         self.buyTracker = buyTracker
         self.sellTracker = sellTracker
+        self.alarmActive = alarmActive
         self.deamonState = deamonState
         self.spacer = '-------------------------------------------------------------------------'
+        self.dataColumns = [['DateTime', 'Price']]
         self._stop_event = threading.Event()
         self.setDaemon(self.deamonState)
+
+    def graph(self, API, coinDataFrame):
+        now = datetime.now()
+        date_time = now.strftime("%m/%d/%Y, %H:%M:%S")
+        price = API.instantValue()[0]
+        data = [[date_time, price]]
+        df = coinDataFrame.append(data, ignore_index=True)
+        print(df)
 
     def tracker(self, API):
         now = datetime.now()
@@ -76,12 +87,19 @@ class CoinTracker(threading.Thread):
                 window[self.multilineKey].update('Buy Price is activated!' + '\n' + self.spacer + '\n',
                                                  text_color_for_value='black',
                                                  append=True, background_color='yellow')
+                if self.alarmActive:
+                    playsound("C:/Diverse Yusuf Software/Python Packages/Modbus RTU/alarmclock.mp3")
+                    self.alarmActive = False
 
         if self.sellTracker:
             if float(price) > float(self.sellPrice):
                 window[self.multilineKey].update('Sell Price is activated!' + '\n' + self.spacer + '\n',
                                                  text_color_for_value='black',
                                                  append=True, background_color='yellow')
+                if self.alarmActive:
+                    playsound("C:/Diverse Yusuf Software/Python Packages/Modbus RTU/alarmclock.mp3")
+                    self.alarmActive = False
+        return price, currency
 
     def stop(self):
         logging.debug("Stop coin price follower thread has been called!")
@@ -90,14 +108,24 @@ class CoinTracker(threading.Thread):
     def run(self):
         logging.debug("Coin thread has been started!")
         API = CoinbaseAPI(self.coinAPIName)
+        coinDataFrame = pd.DataFrame(columns=self.dataColumns)
         while not self._stop_event.is_set():
             self.tracker(API)
+            #self.graph(API, coinDataFrame)
             time.sleep(self.followTime)
         logging.debug("Coin price follower thread has been stopped!")
 
 
 class CoinWallet:
-    pass
+
+    def __init__(self, totalAmount,totalCoin, coinName, coinAPIName, investmentFee, profit):
+        self.totalAmount = totalAmount
+        self.totalCoin = totalCoin
+        self.coinName = coinName
+        self.coinAPIName = coinAPIName
+        self.investmentFee = investmentFee
+        self.profit = profit
+        pass
 
 
 class GUI:
@@ -289,7 +317,7 @@ if __name__ == '__main__':
                                       float(values['Tracker_Coin_Following_Time']),
                                       values['Tracker_Text_Color'], values['Tracker_Buy_Price'],
                                       values['Tracker_Sell_Price'], values['Buy_Tracker_Active'],
-                                      values['Sell_Tracker_Active'])
+                                      values['Sell_Tracker_Active'], values['Alarm_Active'])
                 Tracker.start()
                 app.updateStartTracker()
 
