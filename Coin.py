@@ -71,7 +71,7 @@ class CoinTracker(threading.Thread):
     def graph(API, coinDataFrame):
         now = datetime.now()
         date_time = now.strftime("%m/%d/%Y, %H:%M:%S")
-        price = API.instantValue()[0]
+        price = float(API.instantValue()[0])
         data = [date_time, price]
         coinDataFrame.loc[len(coinDataFrame)] = data
         return coinDataFrame
